@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Regra para a coleção users
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && (
+        // Permite que um usuário atualize seu próprio documento
+        request.auth.uid == userId ||
+        // Ou se o usuário atual é um admin
+        isAdmin()
+      );
+    }
+
+    // Regra para o tema público
+    match /public/theme {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Regra específica para produtos
+    match /products/{productId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isAdmin();
+      allow update: if request.auth != null && isAdmin();
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+    // Outras coleções
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}
